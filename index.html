@@ -4,9 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Dividenden">
-<meta name="theme-color" content="#1a1916">
+<meta name="theme-color" content="#f5f4f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1a1916" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>A1JX52 – Dividenden-Rechner</title>
@@ -27,24 +28,69 @@
     --radius: 10px;
     --font: 'DM Sans', 'Segoe UI', sans-serif;
     --font-mono: 'DM Mono', 'Fira Mono', monospace;
+    --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
   }
 
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1916;
+      --surface: #242320;
+      --border: #38352f;
+      --border-strong: #504d45;
+      --text: #f0ede8;
+      --text-muted: #9e9b94;
+      --text-hint: #6b6860;
+      --green: #4caf78;
+      --red: #e06b5a;
+      --accent: #f0ede8;
+    }
+  }
+
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+
+  html { height: 100%; overflow-y: scroll; }
 
   body {
     font-family: var(--font);
     background: var(--bg);
     color: var(--text);
-    min-height: 100vh;
-    padding: 2rem 1rem calc(2rem + var(--safe-bottom));
+    min-height: 100%;
+    padding: calc(1rem + var(--safe-top)) 1rem calc(2rem + var(--safe-bottom));
     font-size: 15px;
     line-height: 1.5;
+    transition: background 0.2s, color 0.2s;
+    overscroll-behavior-y: contain;
   }
 
   .wrapper { max-width: 560px; margin: 0 auto; }
 
-  header { margin-bottom: 2rem; }
+  #ptr {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 0;
+    overflow: hidden;
+    transition: height 0.2s;
+    font-size: 12px;
+    font-family: var(--font-mono);
+    color: var(--text-hint);
+    gap: 6px;
+  }
+  #ptr.visible { height: 44px; }
+  .ptr-spinner {
+    width: 14px; height: 14px;
+    border: 1.5px solid var(--border-strong);
+    border-top-color: var(--text-muted);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  #ptr.loading .ptr-spinner { display: block; }
+  #ptr.loading .ptr-arrow { display: none; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  header { margin: 0.5rem 0 1.5rem; }
   header h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; margin-bottom: 2px; }
   header p { font-size: 13px; color: var(--text-muted); font-family: var(--font-mono); }
 
@@ -54,6 +100,7 @@
     border-radius: var(--radius);
     padding: 1.25rem;
     margin-bottom: 10px;
+    transition: background 0.2s, border-color 0.2s;
   }
 
   .card-label {
@@ -79,7 +126,7 @@
     font-family: var(--font-mono);
     color: var(--text);
     outline: none;
-    transition: border-color 0.15s;
+    transition: border-color 0.15s, background 0.2s;
     -moz-appearance: textfield;
   }
 
@@ -88,7 +135,7 @@
 
   input[type=number]:focus, select:focus {
     border-color: var(--border-strong);
-    background: #fff;
+    background: var(--surface);
   }
 
   select { cursor: pointer; }
@@ -100,7 +147,7 @@
 
   button {
     background: var(--text);
-    color: #fff;
+    color: var(--bg);
     border: none;
     border-radius: 6px;
     padding: 8px 14px;
@@ -122,7 +169,7 @@
   .toggle-row label { font-size: 13px; color: var(--text); margin: 0; cursor: pointer; }
 
   .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-  .metric { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+  .metric { background: var(--bg); border-radius: 8px; padding: 10px 12px; transition: background 0.2s; }
   .metric-label { font-size: 11px; font-family: var(--font-mono); color: var(--text-hint); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
   .metric-value { font-size: 20px; font-weight: 500; font-family: var(--font-mono); color: var(--text); }
   .metric-value.green { color: var(--green); }
@@ -144,17 +191,24 @@
   .etf-change { font-size: 14px; font-weight: 500; font-family: var(--font-mono); }
   .etf-change.pos { color: var(--green); }
   .etf-change.neg { color: var(--red); }
-  .etf-depot { font-size: 12px; color: var(--text-hint); font-family: var(--font-mono); margin-top: 2px; }
+  .etf-sub { font-size: 12px; color: var(--text-hint); font-family: var(--font-mono); margin-top: 2px; }
   .etf-hint { font-size: 11px; font-family: var(--font-mono); color: var(--text-hint); margin-top: 8px; }
+  .etf-stale { font-size: 11px; font-family: var(--font-mono); color: var(--red); margin-top: 4px; }
   .chart-wrap { position: relative; height: 60px; margin: 10px 0 0; }
   canvas#etf-chart { width: 100%; height: 60px; }
-  .chart-skeleton { height: 60px; background: var(--bg); border-radius: 4px; margin-top: 10px; display: flex; align-items: center; justify-content: center; }
+  .chart-skeleton { height: 60px; background: var(--bg); border-radius: 4px; margin-top: 10px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
   .chart-skeleton span { font-size: 12px; color: var(--text-hint); font-family: var(--font-mono); }
 </style>
 </head>
 <body>
-<div class="wrapper">
 
+<div id="ptr">
+  <span class="ptr-arrow">↓</span>
+  <div class="ptr-spinner"></div>
+  <span id="ptr-label">Nach unten ziehen…</span>
+</div>
+
+<div class="wrapper">
   <header>
     <h1>Dividenden-Rechner</h1>
     <p>Vanguard FTSE All-World · WKN A1JX52 · Quartalsausschüttung</p>
@@ -165,11 +219,11 @@
     <div class="etf-header">
       <div>
         <div class="etf-price" id="etf-price">–</div>
-        <div class="etf-depot" id="etf-depot"></div>
+        <div class="etf-sub" id="etf-depot"></div>
       </div>
       <div class="etf-right">
         <div class="etf-change" id="etf-change">–</div>
-        <div class="etf-depot" id="etf-time"></div>
+        <div class="etf-sub" id="etf-time"></div>
       </div>
     </div>
     <div class="chart-wrap">
@@ -177,6 +231,7 @@
       <canvas id="etf-chart" style="display:none;"></canvas>
     </div>
     <p class="etf-hint" id="etf-hint"></p>
+    <p class="etf-stale" id="etf-stale" style="display:none;"></p>
   </div>
 
   <div class="card">
@@ -234,8 +289,8 @@
   </div>
 
   <p class="footer-note">Kurse: frankfurter.app · Yahoo Finance · Werte lokal gespeichert</p>
-
 </div>
+
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
@@ -243,6 +298,17 @@
 
   const FIELDS = ['anteile','eurusd','usd','freibetrag','kirche','teilfrei'];
   const LS_KEY = 'a1jx52_rechner';
+  const LS_ETF = 'a1jx52_etf_cache';
+
+  function haptic(type) {
+    try {
+      if (window.navigator && window.navigator.vibrate) {
+        if (type === 'light') navigator.vibrate(10);
+        else if (type === 'success') navigator.vibrate([10, 40, 10]);
+        else navigator.vibrate(30);
+      }
+    } catch(e) {}
+  }
 
   function loadSaved() {
     try {
@@ -293,6 +359,7 @@
       hint.textContent = 'Aktualisiert um ' + now + ' · frankfurter.app';
       saveValues();
       calc();
+      if (!silent) haptic('success');
     } catch(err) {
       hint.textContent = 'Abruf fehlgeschlagen – bitte manuell eintragen';
     } finally {
@@ -335,45 +402,85 @@
     `;
   }
 
-  async function fetchETF() {
-    const proxy = 'https://corsproxy.io/?';
-    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/VWRL.F?interval=5m&range=1d';
-    try {
-      const res = await fetch(proxy + encodeURIComponent(url));
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      const json = await res.json();
-      const result = json.chart.result[0];
-      const meta = result.meta;
-      const closes = result.indicators.quote[0].close;
-      const timestamps = result.timestamp;
+  function renderETF(current, open, prices) {
+    const change = current - open;
+    const changePct = (change / open) * 100;
+    const isPos = change >= 0;
+    const anteile = parseFloat(document.getElementById('anteile').value) || 0;
 
-      const validPairs = timestamps.map((t, i) => ({ t, c: closes[i] })).filter(p => p.c !== null);
-      if (validPairs.length === 0) throw new Error('no data');
+    document.getElementById('etf-price').textContent = fmt(current) + ' €';
+    const changeEl = document.getElementById('etf-change');
+    changeEl.textContent = (isPos ? '+' : '') + fmt(change) + ' € (' + (isPos ? '+' : '') + changePct.toFixed(2) + ' %)';
+    changeEl.className = 'etf-change ' + (isPos ? 'pos' : 'neg');
 
-      const current = meta.regularMarketPrice || validPairs[validPairs.length - 1].c;
-      const open = meta.chartPreviousClose || validPairs[0].c;
-      const change = current - open;
-      const changePct = (change / open) * 100;
-      const isPos = change >= 0;
-
-      const anteile = parseFloat(document.getElementById('anteile').value) || 0;
+    if (anteile > 0) {
       const depotWert = current * anteile;
+      document.getElementById('etf-depot').textContent = 'Depotwert: ' + depotWert.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
+    }
 
-      document.getElementById('etf-price').textContent = current.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-      const changeEl = document.getElementById('etf-change');
-      changeEl.textContent = (isPos ? '+' : '') + change.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' € (' + (isPos ? '+' : '') + changePct.toFixed(2) + ' %)';
-      changeEl.className = 'etf-change ' + (isPos ? 'pos' : 'neg');
+    drawChart(prices, open, isPos);
+  }
 
-      if (anteile > 0) {
-        document.getElementById('etf-depot').textContent = 'Depotwert: ' + depotWert.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
-      }
-
-      const now = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      document.getElementById('etf-time').textContent = 'Stand: ' + now;
+  function showCachedETF() {
+    try {
+      const cached = JSON.parse(localStorage.getItem(LS_ETF));
+      if (!cached) return false;
+      renderETF(cached.price, cached.open, cached.prices);
+      const staleEl = document.getElementById('etf-stale');
+      staleEl.style.display = 'block';
+      staleEl.textContent = 'Offline – letzter Stand: ' + cached.time;
       document.getElementById('etf-hint').textContent = 'Quelle: Yahoo Finance · XETRA-Handelstag';
+      return true;
+    } catch(e) { return false; }
+  }
 
-      drawChart(validPairs.map(p => p.c), open, isPos);
-    } catch(e) {
+  function saveETFCache(price, open, prices) {
+    try {
+      const now = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      localStorage.setItem(LS_ETF, JSON.stringify({ price, open, prices, time: now }));
+    } catch(e) {}
+  }
+
+  const ETF_PROXIES = [
+    url => 'https://corsproxy.io/?' + encodeURIComponent(url),
+    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
+  ];
+
+  async function fetchETF() {
+    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/VWRL.F?interval=5m&range=1d';
+
+    for (const proxyFn of ETF_PROXIES) {
+      try {
+        const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(8000) });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const json = await res.json();
+        const result = json.chart.result[0];
+        const meta = result.meta;
+        const closes = result.indicators.quote[0].close;
+        const timestamps = result.timestamp;
+
+        const validPairs = timestamps.map((t, i) => ({ t, c: closes[i] })).filter(p => p.c !== null);
+        if (validPairs.length === 0) throw new Error('no data');
+
+        const current = meta.regularMarketPrice || validPairs[validPairs.length - 1].c;
+        const open = meta.chartPreviousClose || validPairs[0].c;
+        const prices = validPairs.map(p => p.c);
+
+        renderETF(current, open, prices);
+        saveETFCache(current, open, prices);
+
+        const now = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('etf-time').textContent = 'Stand: ' + now;
+        document.getElementById('etf-hint').textContent = 'Quelle: Yahoo Finance · XETRA-Handelstag';
+        document.getElementById('etf-stale').style.display = 'none';
+        return;
+      } catch(e) {
+        continue;
+      }
+    }
+
+    const hadCache = showCachedETF();
+    if (!hadCache) {
       document.getElementById('chart-skeleton').innerHTML = '<span>Kursdaten nicht verfügbar</span>';
       document.getElementById('etf-hint').textContent = 'Kurs konnte nicht geladen werden';
     }
@@ -406,18 +513,16 @@
     const color = isPos ? '#2a7a4b' : '#b03a2e';
     const colorFill = isPos ? 'rgba(42,122,75,0.08)' : 'rgba(176,58,46,0.08)';
 
-    // baseline (open price)
     const baseY = toY(open);
     ctx.beginPath();
     ctx.setLineDash([3, 3]);
     ctx.moveTo(0, baseY);
     ctx.lineTo(W, baseY);
-    ctx.strokeStyle = 'rgba(160,157,151,0.5)';
+    ctx.strokeStyle = 'rgba(160,157,151,0.4)';
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // fill
     ctx.beginPath();
     ctx.moveTo(toX(0), toY(prices[0]));
     prices.forEach((p, i) => ctx.lineTo(toX(i), toY(p)));
@@ -427,7 +532,6 @@
     ctx.fillStyle = colorFill;
     ctx.fill();
 
-    // line
     ctx.beginPath();
     ctx.moveTo(toX(0), toY(prices[0]));
     prices.forEach((p, i) => ctx.lineTo(toX(i), toY(p)));
@@ -437,8 +541,57 @@
     ctx.stroke();
   }
 
+  // Pull-to-refresh
+  (function() {
+    let startY = 0, currentY = 0, pulling = false;
+    const THRESHOLD = 72;
+    const ptr = document.getElementById('ptr');
+    const ptrLabel = document.getElementById('ptr-label');
+
+    document.addEventListener('touchstart', e => {
+      if (window.scrollY === 0) {
+        startY = e.touches[0].clientY;
+        pulling = true;
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', e => {
+      if (!pulling) return;
+      currentY = e.touches[0].clientY;
+      const dist = Math.max(0, currentY - startY);
+      if (dist > 8) {
+        const h = Math.min(dist * 0.5, 56);
+        ptr.style.height = h + 'px';
+        ptr.classList.toggle('visible', h > 16);
+        ptrLabel.textContent = h >= THRESHOLD * 0.5 ? 'Zum Aktualisieren loslassen' : 'Nach unten ziehen…';
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchend', async () => {
+      if (!pulling) return;
+      pulling = false;
+      const dist = currentY - startY;
+      if (dist >= THRESHOLD) {
+        ptr.classList.add('loading');
+        ptr.style.height = '44px';
+        ptrLabel.textContent = 'Wird aktualisiert…';
+        haptic('light');
+        await Promise.all([fetchKurs(true), fetchETF()]);
+        haptic('success');
+      }
+      ptr.style.transition = 'height 0.25s';
+      ptr.style.height = '0';
+      setTimeout(() => {
+        ptr.classList.remove('visible', 'loading');
+        ptr.style.transition = '';
+      }, 260);
+      startY = 0; currentY = 0;
+    }, { passive: true });
+  })();
+
   loadSaved();
   calc();
+  showCachedETF();
   fetchKurs(true);
   fetchETF();
 </script>

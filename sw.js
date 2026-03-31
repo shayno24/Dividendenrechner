@@ -1,4 +1,4 @@
-const CACHE = 'dividenden-v2';
+const CACHE = 'dividenden-v3';
 const ASSETS = [
   './',
   './index.html',

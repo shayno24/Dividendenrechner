@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Dividenden">
+<meta name="theme-color" content="#1a1916">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>A1JX52 – Dividenden-Rechner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --border: #e0ddd6;
+    --border-strong: #c8c4bb;
+    --text: #1a1916;
+    --text-muted: #6b6860;
+    --text-hint: #a09d97;
+    --green: #2a7a4b;
+    --red: #b03a2e;
+    --accent: #1a1916;
+    --radius: 10px;
+    --font: 'DM Sans', 'Segoe UI', sans-serif;
+    --font-mono: 'DM Mono', 'Fira Mono', monospace;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1rem calc(2rem + var(--safe-bottom));
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .wrapper { max-width: 560px; margin: 0 auto; }
+
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 22px; font-weight: 500; letter-spacing: -0.3px; margin-bottom: 2px; }
+  header p { font-size: 13px; color: var(--text-muted); font-family: var(--font-mono); }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    margin-bottom: 10px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-hint);
+    margin-bottom: 12px;
+  }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 5px; }
+
+  input[type=number], select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 16px;
+    font-family: var(--font-mono);
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.15s;
+    -moz-appearance: textfield;
+  }
+
+  input[type=number]::-webkit-inner-spin-button,
+  input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+  input[type=number]:focus, select:focus {
+    border-color: var(--border-strong);
+    background: #fff;
+  }
+
+  select { cursor: pointer; }
+
+  .kurs-row { display: flex; gap: 8px; align-items: flex-end; }
+  .kurs-row > div { flex: 1; }
+
+  .kurs-hint { font-size: 11px; font-family: var(--font-mono); color: var(--text-hint); margin-top: 5px; }
+
+  button {
+    background: var(--text);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-family: var(--font);
+    cursor: pointer;
+    white-space: nowrap;
+    margin-bottom: 22px;
+    transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:hover { opacity: 0.8; }
+  button:active { opacity: 0.6; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .toggle-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .toggle-row input[type=checkbox] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+  .toggle-row label { font-size: 13px; color: var(--text); margin: 0; cursor: pointer; }
+
+  .metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .metric { background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+  .metric-label { font-size: 11px; font-family: var(--font-mono); color: var(--text-hint); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .metric-value { font-size: 20px; font-weight: 500; font-family: var(--font-mono); color: var(--text); }
+  .metric-value.green { color: var(--green); }
+
+  .rows { border-top: 1px solid var(--border); }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .row:last-child { border-bottom: none; }
+  .row-label { color: var(--text-muted); }
+  .row-value { font-family: var(--font-mono); font-weight: 500; color: var(--text); }
+  .row-value.neg { color: var(--red); }
+  .row-value.pos { color: var(--green); }
+  .row.total .row-label { color: var(--text); font-weight: 500; }
+
+  .footer-note { font-size: 12px; color: var(--text-hint); text-align: center; margin-top: 1.5rem; font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <header>
+    <h1>Dividenden-Rechner</h1>
+    <p>Vanguard FTSE All-World · WKN A1JX52 · Quartalsausschüttung</p>
+  </header>
+
+  <div class="card">
+    <p class="card-label">Depot</p>
+    <div class="grid2">
+      <div>
+        <label>Anzahl Anteile</label>
+        <input type="number" id="anteile" value="3640.373953" step="0.000001" min="0" inputmode="decimal">
+      </div>
+      <div>
+        <label>Ausschüttung / Anteil (USD)</label>
+        <input type="number" id="usd" value="0.40" step="0.01" min="0" inputmode="decimal">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">USD / EUR</p>
+    <div class="kurs-row">
+      <div>
+        <label>Wechselkurs (1 USD = x EUR)</label>
+        <input type="number" id="eurusd" value="0.8724" step="0.0001" min="0.0001" inputmode="decimal">
+        <p class="kurs-hint" id="kurs-hint">Manuell eingetragen</p>
+      </div>
+      <button id="kurs-btn" onclick="fetchKurs()">↻ Kurs abrufen</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">Steuern</p>
+    <div class="grid2">
+      <div>
+        <label>Sparerpauschbetrag (€)</label>
+        <input type="number" id="freibetrag" value="1000" step="50" min="0" inputmode="decimal">
+      </div>
+      <div>
+        <label>Kirchensteuer</label>
+        <select id="kirche">
+          <option value="0">Keine</option>
+          <option value="0.08">8 % (BY, BW)</option>
+          <option value="0.09">9 % (übrige Länder)</option>
+        </select>
+      </div>
+    </div>
+    <div class="toggle-row">
+      <input type="checkbox" id="teilfrei" checked>
+      <label for="teilfrei">Teilfreistellung 30 % (Aktien-ETF)</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <p class="card-label">Ergebnis</p>
+    <div class="metrics" id="metrics"></div>
+    <div class="rows" id="rows"></div>
+  </div>
+
+  <p class="footer-note">Werte werden lokal gespeichert · Kurs-Abruf nur in Claude.ai</p>
+
+</div>
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js');
+  }
+
+  const FIELDS = ['anteile','eurusd','usd','freibetrag','kirche','teilfrei'];
+  const LS_KEY = 'a1jx52_rechner';
+
+  function loadSaved() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+      FIELDS.forEach(id => {
+        if (saved[id] === undefined) return;
+        const el = document.getElementById(id);
+        if (el.type === 'checkbox') el.checked = saved[id];
+        else el.value = saved[id];
+      });
+    } catch(e) {}
+  }
+
+  function saveValues() {
+    try {
+      const data = {};
+      FIELDS.forEach(id => {
+        const el = document.getElementById(id);
+        data[id] = el.type === 'checkbox' ? el.checked : el.value;
+      });
+      localStorage.setItem(LS_KEY, JSON.stringify(data));
+    } catch(e) {}
+  }
+
+  FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    const evt = el.tagName === 'SELECT' ? 'change' : 'input';
+    el.addEventListener(evt, () => { saveValues(); calc(); });
+  });
+
+  function fmt(n) {
+    return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function fetchKurs() {
+    const btn = document.getElementById('kurs-btn');
+    btn.textContent = '…';
+    btn.disabled = true;
+    if (typeof sendPrompt === 'function') {
+      sendPrompt('Bitte ruf den aktuellen EUR/USD-Kurs ab und antworte NUR mit einer Zahl, z.B.: EURUSD:1.0823');
+    } else {
+      alert('Kurs-Abruf ist nur im Claude.ai-Chat verfügbar.\nBitte Kurs manuell eintragen.');
+      btn.textContent = '↻ Kurs abrufen';
+      btn.disabled = false;
+    }
+  }
+
+  window.addEventListener('message', e => {
+    if (e.data && typeof e.data === 'string') {
+      const m = e.data.match(/EURUSD:([\d.]+)/);
+      if (m) {
+        const val = (1 / parseFloat(m[1])).toFixed(4);
+        document.getElementById('eurusd').value = val;
+        const now = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('kurs-hint').textContent = 'Abgerufen um ' + now;
+        const btn = document.getElementById('kurs-btn');
+        btn.textContent = '↻ Kurs abrufen';
+        btn.disabled = false;
+        saveValues();
+        calc();
+      }
+    }
+  });
+
+  function calc() {
+    const anteile  = parseFloat(document.getElementById('anteile').value)    || 0;
+    const usdeur   = parseFloat(document.getElementById('eurusd').value)     || 1;
+    const usd      = parseFloat(document.getElementById('usd').value)        || 0;
+    const fb       = parseFloat(document.getElementById('freibetrag').value) || 0;
+    const kirche   = parseFloat(document.getElementById('kirche').value);
+    const teilfrei = document.getElementById('teilfrei').checked;
+
+    const brutto     = usd * anteile * usdeur;
+    const stpf       = teilfrei ? brutto * 0.70 : brutto;
+    const fbVerb     = Math.min(stpf, fb);
+    const stpfNachFb = Math.max(0, stpf - fbVerb);
+    const kistSatz   = kirche > 0 ? kirche / (1 + 0.055 * kirche) : 0;
+    const ast        = 0.25 / (1 + 0.055 * 0.25 + kistSatz * 0.25);
+    const steuer     = stpfNachFb * (ast + ast * 0.055 + ast * kirche);
+    const netto      = brutto - steuer;
+    const eur_pro_ant = usd * usdeur;
+
+    document.getElementById('metrics').innerHTML = `
+      <div class="metric"><p class="metric-label">Brutto</p><p class="metric-value">${fmt(brutto)} €</p></div>
+      <div class="metric"><p class="metric-label">Steuer</p><p class="metric-value">${fmt(steuer)} €</p></div>
+      <div class="metric"><p class="metric-label">Netto</p><p class="metric-value green">${fmt(netto)} €</p></div>
+    `;
+
+    document.getElementById('rows').innerHTML = `
+      <div class="row"><span class="row-label">Brutto (${fmt(eur_pro_ant)} €/Anteil)</span><span class="row-value">${fmt(brutto)} €</span></div>
+      <div class="row"><span class="row-label">Steuerpflichtiger Anteil${teilfrei ? ' (70 %)' : ''}</span><span class="row-value">${fmt(stpf)} €</span></div>
+      ${fbVerb > 0 ? `<div class="row"><span class="row-label">Sparerpauschbetrag</span><span class="row-value neg">− ${fmt(fbVerb)} €</span></div>` : ''}
+      <div class="row"><span class="row-label">Stpfl. nach Freibetrag</span><span class="row-value">${fmt(stpfNachFb)} €</span></div>
+      <div class="row"><span class="row-label">Steuer (AbgSt + SolZ${kirche > 0 ? ' + KiSt' : ''})</span><span class="row-value neg">− ${fmt(steuer)} €</span></div>
+      <div class="row total"><span class="row-label">Netto</span><span class="row-value pos">${fmt(netto)} €</span></div>
+    `;
+  }
+
+  loadSaved();
+  calc();
+</script>
+</body>
+</html>

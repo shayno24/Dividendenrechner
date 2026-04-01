@@ -3,6 +3,81 @@
 const CACHE = 'dividenden-app';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
+// External API domains that must never be cached
+const API_HOSTS = ['api.frankfurter.app', 'api.twelvedata.com', 'query1.finance.yahoo.com'];
+
+// Install: pre-cache all assets
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(ASSETS))
+  );
+  self.skipWaiting();
+});
+
+// Activate: clean up any old differently-named caches
+self.addEventListener('activate', e => {
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+// Fetch strategy:
+// - External API calls: always network-only, never cache
+// - index.html: network-first with cache fallback + auto-reload on update
+// - Other local assets (icons, manifest): cache-first
+self.addEventListener('fetch', e => {
+  const url = new URL(e.request.url);
+
+  // Never cache external API requests
+  if (API_HOSTS.includes(url.hostname)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  const isHTML = url.pathname.endsWith('/') || url.pathname.endsWith('.html');
+
+  if (isHTML) {
+    e.respondWith(
+      fetch(e.request).then(networkRes => {
+        if (networkRes.ok) {
+          const clone = networkRes.clone();
+          caches.open(CACHE).then(async c => {
+            const cached = await c.match(e.request);
+            const oldEtag = cached ? cached.headers.get('etag') : null;
+            const newEtag = networkRes.headers.get('etag');
+            const oldModified = cached ? cached.headers.get('last-modified') : null;
+            const newModified = networkRes.headers.get('last-modified');
+            const changed =
+              (newEtag && oldEtag && newEtag !== oldEtag) ||
+              (newModified && oldModified && newModified !== oldModified) ||
+              (!oldEtag && !oldModified);
+            if (changed) {
+              await c.put(e.request, clone);
+              const clients = await self.clients.matchAll({ type: 'window' });
+              clients.forEach(client => client.postMessage({ type: 'SW_UPDATED' }));
+            }
+          });
+        }
+        return networkRes;
+      }).catch(() => caches.match(e.request))
+    );
+  } else {
+    e.respondWith(
+      caches.match(e.request).then(cached => {
+        if (cached) return cached;
+        return fetch(e.request).then(res => {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+          return res;
+        });
+      })
+    );
+  }
+});
+
 // Install: pre-cache all assets
 self.addEventListener('install', e => {
   e.waitUntil(

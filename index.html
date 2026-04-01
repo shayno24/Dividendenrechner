@@ -184,20 +184,6 @@
   .row.total .row-label { color: var(--text); font-weight: 500; }
 
   .footer-note { font-size: 12px; color: var(--text-hint); text-align: center; margin-top: 1.5rem; font-family: var(--font-mono); }
-
-  .etf-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
-  .etf-price { font-size: 28px; font-weight: 500; font-family: var(--font-mono); letter-spacing: -0.5px; }
-  .etf-right { text-align: right; }
-  .etf-change { font-size: 14px; font-weight: 500; font-family: var(--font-mono); }
-  .etf-change.pos { color: var(--green); }
-  .etf-change.neg { color: var(--red); }
-  .etf-sub { font-size: 12px; color: var(--text-hint); font-family: var(--font-mono); margin-top: 2px; }
-  .etf-hint { font-size: 11px; font-family: var(--font-mono); color: var(--text-hint); margin-top: 8px; }
-  .etf-stale { font-size: 11px; font-family: var(--font-mono); color: var(--red); margin-top: 4px; }
-  .chart-wrap { position: relative; height: 60px; margin: 10px 0 0; }
-  canvas#etf-chart { width: 100%; height: 60px; }
-  .chart-skeleton { height: 60px; background: var(--bg); border-radius: 4px; margin-top: 10px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
-  .chart-skeleton span { font-size: 12px; color: var(--text-hint); font-family: var(--font-mono); }
 </style>
 </head>
 <body>
@@ -213,26 +199,6 @@
     <h1>Dividenden-Rechner</h1>
     <p>Vanguard FTSE All-World · WKN A1JX52 · Quartalsausschüttung</p>
   </header>
-
-  <div class="card" id="etf-card">
-    <p class="card-label">ETF-Kurs · VWRL.F · Frankfurt</p>
-    <div class="etf-header">
-      <div>
-        <div class="etf-price" id="etf-price">–</div>
-        <div class="etf-sub" id="etf-depot"></div>
-      </div>
-      <div class="etf-right">
-        <div class="etf-change" id="etf-change">–</div>
-        <div class="etf-sub" id="etf-time"></div>
-      </div>
-    </div>
-    <div class="chart-wrap">
-      <div class="chart-skeleton" id="chart-skeleton"><span>Kursverlauf wird geladen…</span></div>
-      <canvas id="etf-chart" style="display:none;"></canvas>
-    </div>
-    <p class="etf-hint" id="etf-hint"></p>
-    <p class="etf-stale" id="etf-stale" style="display:none;"></p>
-  </div>
 
   <div class="card">
     <p class="card-label">Depot</p>
@@ -288,26 +254,23 @@
     <div class="rows" id="rows"></div>
   </div>
 
-  <p class="footer-note">v1.0.0 · Kurse: frankfurter.app · Yahoo Finance · Werte lokal gespeichert</p>
+  <p class="footer-note">v1.1.0 · Wechselkurs: frankfurter.app · Werte lokal gespeichert</p>
 </div>
 
 <script>
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js');
     navigator.serviceWorker.addEventListener('message', e => {
-      if (e.data && e.data.type === 'SW_UPDATED') {
-        window.location.reload();
-      }
+      if (e.data && e.data.type === 'SW_UPDATED') window.location.reload();
     });
   }
 
   const FIELDS = ['anteile','eurusd','usd','freibetrag','kirche','teilfrei'];
   const LS_KEY = 'a1jx52_rechner';
-  const LS_ETF = 'a1jx52_etf_cache';
 
   function haptic(type) {
     try {
-      if (window.navigator && window.navigator.vibrate) {
+      if (navigator.vibrate) {
         if (type === 'light') navigator.vibrate(10);
         else if (type === 'success') navigator.vibrate([10, 40, 10]);
         else navigator.vibrate(30);
@@ -407,145 +370,6 @@
     `;
   }
 
-  function renderETF(current, open, prices) {
-    const change = current - open;
-    const changePct = (change / open) * 100;
-    const isPos = change >= 0;
-    const anteile = parseFloat(document.getElementById('anteile').value) || 0;
-
-    document.getElementById('etf-price').textContent = fmt(current) + ' €';
-    const changeEl = document.getElementById('etf-change');
-    changeEl.textContent = (isPos ? '+' : '') + fmt(change) + ' € (' + (isPos ? '+' : '') + changePct.toFixed(2) + ' %)';
-    changeEl.className = 'etf-change ' + (isPos ? 'pos' : 'neg');
-
-    if (anteile > 0) {
-      const depotWert = current * anteile;
-      document.getElementById('etf-depot').textContent = 'Depotwert: ' + depotWert.toLocaleString('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' €';
-    }
-
-    drawChart(prices, open, isPos);
-  }
-
-  function showCachedETF() {
-    try {
-      const cached = JSON.parse(localStorage.getItem(LS_ETF));
-      if (!cached) return false;
-      renderETF(cached.price, cached.open, cached.prices);
-      const staleEl = document.getElementById('etf-stale');
-      staleEl.style.display = 'block';
-      staleEl.textContent = 'Offline – letzter Stand: ' + cached.time;
-      document.getElementById('etf-hint').textContent = 'Quelle: Yahoo Finance · XETRA-Handelstag';
-      return true;
-    } catch(e) { return false; }
-  }
-
-  function saveETFCache(price, open, prices) {
-    try {
-      const now = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      localStorage.setItem(LS_ETF, JSON.stringify({ price, open, prices, time: now }));
-    } catch(e) {}
-  }
-
-  const ETF_PROXIES = [
-    url => 'https://corsproxy.io/?' + encodeURIComponent(url),
-    url => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url),
-  ];
-
-  async function fetchETF() {
-    const url = 'https://query1.finance.yahoo.com/v8/finance/chart/VWRL.F?interval=5m&range=1d';
-
-    for (const proxyFn of ETF_PROXIES) {
-      try {
-        const res = await fetch(proxyFn(url), { signal: AbortSignal.timeout(8000) });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const json = await res.json();
-        const result = json.chart.result[0];
-        const meta = result.meta;
-        const closes = result.indicators.quote[0].close;
-        const timestamps = result.timestamp;
-
-        const validPairs = timestamps.map((t, i) => ({ t, c: closes[i] })).filter(p => p.c !== null);
-        if (validPairs.length === 0) throw new Error('no data');
-
-        const current = meta.regularMarketPrice || validPairs[validPairs.length - 1].c;
-        const open = meta.chartPreviousClose || validPairs[0].c;
-        const prices = validPairs.map(p => p.c);
-
-        renderETF(current, open, prices);
-        saveETFCache(current, open, prices);
-
-        const now = new Date().toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-        document.getElementById('etf-time').textContent = 'Stand: ' + now;
-        document.getElementById('etf-hint').textContent = 'Quelle: Yahoo Finance · XETRA-Handelstag';
-        document.getElementById('etf-stale').style.display = 'none';
-        return;
-      } catch(e) {
-        continue;
-      }
-    }
-
-    const hadCache = showCachedETF();
-    if (!hadCache) {
-      document.getElementById('chart-skeleton').innerHTML = '<span>Kursdaten nicht verfügbar</span>';
-      document.getElementById('etf-hint').textContent = 'Kurs konnte nicht geladen werden';
-    }
-  }
-
-  function drawChart(prices, open, isPos) {
-    const skeleton = document.getElementById('chart-skeleton');
-    const canvas = document.getElementById('etf-chart');
-    skeleton.style.display = 'none';
-    canvas.style.display = 'block';
-
-    const dpr = window.devicePixelRatio || 1;
-    const W = canvas.parentElement.clientWidth;
-    const H = 60;
-    canvas.width = W * dpr;
-    canvas.height = H * dpr;
-    canvas.style.width = W + 'px';
-    canvas.style.height = H + 'px';
-
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-
-    const min = Math.min(...prices, open) * 0.9995;
-    const max = Math.max(...prices, open) * 1.0005;
-    const range = max - min || 1;
-
-    const toX = i => (i / (prices.length - 1)) * W;
-    const toY = v => H - ((v - min) / range) * (H - 4) - 2;
-
-    const color = isPos ? '#2a7a4b' : '#b03a2e';
-    const colorFill = isPos ? 'rgba(42,122,75,0.08)' : 'rgba(176,58,46,0.08)';
-
-    const baseY = toY(open);
-    ctx.beginPath();
-    ctx.setLineDash([3, 3]);
-    ctx.moveTo(0, baseY);
-    ctx.lineTo(W, baseY);
-    ctx.strokeStyle = 'rgba(160,157,151,0.4)';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    ctx.setLineDash([]);
-
-    ctx.beginPath();
-    ctx.moveTo(toX(0), toY(prices[0]));
-    prices.forEach((p, i) => ctx.lineTo(toX(i), toY(p)));
-    ctx.lineTo(toX(prices.length - 1), H);
-    ctx.lineTo(toX(0), H);
-    ctx.closePath();
-    ctx.fillStyle = colorFill;
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.moveTo(toX(0), toY(prices[0]));
-    prices.forEach((p, i) => ctx.lineTo(toX(i), toY(p)));
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1.5;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-  }
-
   // Pull-to-refresh
   (function() {
     let startY = 0, currentY = 0, pulling = false;
@@ -554,10 +378,7 @@
     const ptrLabel = document.getElementById('ptr-label');
 
     document.addEventListener('touchstart', e => {
-      if (window.scrollY === 0) {
-        startY = e.touches[0].clientY;
-        pulling = true;
-      }
+      if (window.scrollY === 0) { startY = e.touches[0].clientY; pulling = true; }
     }, { passive: true });
 
     document.addEventListener('touchmove', e => {
@@ -581,24 +402,19 @@
         ptr.style.height = '44px';
         ptrLabel.textContent = 'Wird aktualisiert…';
         haptic('light');
-        await Promise.all([fetchKurs(true), fetchETF()]);
+        await fetchKurs(true);
         haptic('success');
       }
       ptr.style.transition = 'height 0.25s';
       ptr.style.height = '0';
-      setTimeout(() => {
-        ptr.classList.remove('visible', 'loading');
-        ptr.style.transition = '';
-      }, 260);
+      setTimeout(() => { ptr.classList.remove('visible', 'loading'); ptr.style.transition = ''; }, 260);
       startY = 0; currentY = 0;
     }, { passive: true });
   })();
 
   loadSaved();
   calc();
-  showCachedETF();
   fetchKurs(true);
-  fetchETF();
 </script>
 </body>
 </html>
